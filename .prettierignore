@@ -1,0 +1,25 @@
+# output directories
+_site/
+dist/
+build/
+
+# developer tools
+.git/
+node_modules/
+__pycache__/
+.vim/
+.vscode/
+.idea/
+pg/
+
+# caches
+.cache/
+.parcel-cache/
+.mypy_cache/
+
+# phoenix
+deps/
+_build/
+.elixir_ls
+assets/
+priv/
