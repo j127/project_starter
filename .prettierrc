@@ -4,6 +4,7 @@
     "singleQuote": false,
     "tabWidth": 4,
     "trailingComma": "es5",
+    "arrowParens": "always",
     "overrides": [
         {
             "files": ["*.md", "*.mdx", "*.yaml", "*.yml"],
