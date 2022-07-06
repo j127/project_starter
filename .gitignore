@@ -1,4 +1,12 @@
-# TODO: this file could benefit from cleanup
+# gatsby
+# public/
+
+# next
+.next/
+.swc/
+
+# netlify
+.netlify/
 
 .env
 .envrc

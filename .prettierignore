@@ -1,3 +1,13 @@
+# gatsby
+# public/
+
+# next
+.next/
+.swc/
+
+# netlify
+.netlify/
+
 # output directories
 _site/
 dist/
