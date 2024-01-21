@@ -7,10 +7,11 @@
     "arrowParens": "always",
     "overrides": [
         {
-            "files": ["*.md", "*.mdx", "*.yaml", "*.yml"],
+            "files": ["*.yaml", "*.yml"],
             "options": {
                 "tabWidth": 2
             }
         }
-    ]
+    ],
+    "plugins": ["prettier-plugin-tailwindcss"]
 }
