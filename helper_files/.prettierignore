@@ -12,6 +12,7 @@ __pycache__/
 .idea/
 pg/
 .swc/
+pnpm-lock.yaml
 
 # caches
 .cache/
