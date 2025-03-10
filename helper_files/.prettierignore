@@ -8,7 +8,6 @@ build/
 node_modules/
 __pycache__/
 .vim/
-.vscode/
 .idea/
 pg/
 .swc/
