@@ -13,6 +13,8 @@ pg/
 .swc/
 pnpm-lock.yaml
 
+*.min*
+
 # caches
 .cache/
 .parcel-cache/
