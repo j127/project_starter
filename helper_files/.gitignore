@@ -3,6 +3,7 @@
 
 dist/
 build/
+.astro/
 
 .cache/
 .mypy_cache/
