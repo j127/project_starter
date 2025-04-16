@@ -3433,6 +3433,14 @@ Style/Documentation:
   VersionAdded: "0.9"
   AllowedConstants: []
   Exclude:
+    - "app/controllers/**/*"
+    - "app/models/**/*"
+    - "app/helpers/**/*"
+    - "app/mailers/**/*"
+    - "app/jobs/**/*"
+    - "db/**/*"
+    - "config/**/*"
+    - "lib/tasks/**/*"
     - "spec/**/*"
     - "test/**/*"
 
@@ -3536,7 +3544,7 @@ Style/EmptyMethod:
   AutoCorrect: contextual
   VersionAdded: "0.46"
   VersionChanged: "1.61"
-  EnforcedStyle: compact
+  EnforcedStyle: expanded
   SupportedStyles:
     - compact
     - expanded
@@ -3746,7 +3754,7 @@ Style/FrozenStringLiteralComment:
     - always
     - always_true
     - never
-  SafeAutoCorrect: false
+  SafeAutoCorrect: true
   Exclude:
     - "**/*.arb"
 
@@ -5606,3 +5614,4 @@ Style/ZeroLengthPredicate:
   Safe: false
   VersionAdded: "0.37"
   VersionChanged: "0.39"
+
