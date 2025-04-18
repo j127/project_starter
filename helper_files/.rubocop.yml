@@ -5615,3 +5615,6 @@ Style/ZeroLengthPredicate:
   VersionAdded: "0.37"
   VersionChanged: "0.39"
 
+AllCops:
+  Exclude:
+    - "db/schema.rb"
