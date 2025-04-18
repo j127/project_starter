@@ -5617,6 +5617,7 @@ Style/ZeroLengthPredicate:
 
 AllCops:
   Exclude:
+    - db/schema.rb
     - "db/**/*_schema.rb"
     - "vendor/**/*"
     - "node_modules/**/*"
