@@ -3131,7 +3131,7 @@ Style/CharacterLiteral:
 Style/ClassAndModuleChildren:
   Description: Checks style of children classes and modules.
   StyleGuide: "#namespace-definition"
-  SafeAutoCorrect: false
+  SafeAutoCorrect: true
   Enabled: true
   VersionAdded: "0.19"
   VersionChanged: "1.74"
