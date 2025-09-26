@@ -1,0 +1,30 @@
+# output directories
+_site/
+dist/
+build/
+
+# developer tools
+.git/
+node_modules/
+__pycache__/
+.vim/
+.idea/
+pg/
+.swc/
+pnpm-lock.yaml
+
+*.min*
+
+# caches
+.cache/
+.parcel-cache/
+.mypy_cache/
+.next/
+.netlify/
+.wrangler/
+
+# phoenix
+deps/
+_build/
+.elixir_ls
+priv/
