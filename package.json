@@ -4,6 +4,8 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "version": "2.0.0",
   "scripts": {
     "format": "prettier --write '**/*.{md,mdx,ts,js,mjs,cjs,jsx,tsx,yaml,yml,json,html,css,scss,vue,astro}'"
   },

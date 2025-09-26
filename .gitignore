@@ -1,6 +1,7 @@
 tmp_old_code/
 TANK/
 *.bak
+helper_files/
 
 # dependencies (bun install)
 node_modules
