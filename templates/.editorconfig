@@ -8,13 +8,13 @@ indent_style = space
 {% else %}
 indent_style = tab
 {% endif %}
-indent_size = {% indent_size %}
+indent_size = {{ indent_size }}
 charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
 {% if indent_size != 4 %}
-[*.{rs,python,php}]
+[*.{rs,py,php,swift}]
 indent_size = 4
 {% endif %}
 

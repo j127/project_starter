@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { checkbox, input, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import fs from "fs/promises";
@@ -5,6 +6,7 @@ import nunjucks from "nunjucks";
 import path from "path";
 import pino from "pino";
 import pinoPretty from "pino-pretty";
+import prettier from "prettier";
 
 const logger = pino(
   pinoPretty({
@@ -52,11 +54,11 @@ async function main() {
     default: 2,
   });
 
-  // const maxLineLength = await input({
-  //   message: "Max line length",
-  //   default: "80",
-  //   validate: (value) => !isNaN(Number(value)) || "Please enter a number",
-  // });
+  const maxLineLength = await input({
+    message: "Max line length",
+    default: "200",
+    validate: (value) => !isNaN(Number(value)) || "Please enter a number",
+  });
 
   const selectedFiles = await checkbox({
     message: "Select files to add",
@@ -68,6 +70,21 @@ async function main() {
     return;
   }
 
+  let prettierPluginAstro = false;
+  let prettierPluginTailwindcss = false;
+
+  if (selectedFiles.includes(".prettierrc.mjs")) {
+    const plugins = await checkbox({
+      message: "Select Prettier plugins",
+      choices: [
+        { name: "prettier-plugin-astro", value: "astro" },
+        { name: "prettier-plugin-tailwindcss", value: "tailwindcss" },
+      ],
+    });
+    prettierPluginAstro = plugins.includes("astro");
+    prettierPluginTailwindcss = plugins.includes("tailwindcss");
+  }
+
   for (const file of selectedFiles) {
     const templatePath = path.join(templatesDir, file);
     const targetPath = path.join(process.cwd(), file);
@@ -76,12 +93,29 @@ async function main() {
       const templateContent = await fs.readFile(templatePath, "utf-8");
 
       // Configure nunjucks
-      nunjucks.configure({ autoescape: false });
-      const rendered = nunjucks.renderString(templateContent, {
+      nunjucks.configure({
+        autoescape: false,
+        trimBlocks: true,
+        lstripBlocks: true,
+      });
+      let rendered = nunjucks.renderString(templateContent, {
         indent_style: indentStyle,
         indent_size: indentSize,
-        // max_line_length: maxLineLength,
+        max_line_length: maxLineLength,
+        prettier_plugin_astro: prettierPluginAstro,
+        prettier_plugin_tailwindcss: prettierPluginTailwindcss,
       });
+
+      if (file.endsWith(".mjs")) {
+        rendered = await prettier.format(rendered, {
+          parser: "babel",
+        });
+      }
+
+      if (file === ".editorconfig") {
+        // Remove multiple blank lines, leaving max 1
+        rendered = rendered.replace(/\n{3,}/g, "\n\n");
+      }
 
       await fs.writeFile(targetPath, rendered);
       logger.info(`Created ${chalk.green(file)}`);

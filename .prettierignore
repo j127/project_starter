@@ -1,3 +1,4 @@
+templates/
 # output directories
 _site/
 dist/
@@ -12,16 +13,17 @@ __pycache__/
 pg/
 .swc/
 pnpm-lock.yaml
-bun.lock
 
 *.min*
 
 # caches
+.astro/
 .cache/
 .parcel-cache/
 .mypy_cache/
 .next/
 .netlify/
+.swc/
 .wrangler/
 
 # phoenix
@@ -29,3 +31,6 @@ deps/
 _build/
 .elixir_ls
 priv/
+
+*.bak
+TANK/
