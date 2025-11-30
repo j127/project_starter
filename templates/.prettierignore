@@ -16,11 +16,13 @@ pnpm-lock.yaml
 *.min*
 
 # caches
+.astro/
 .cache/
 .parcel-cache/
 .mypy_cache/
 .next/
 .netlify/
+.swc/
 .wrangler/
 
 # phoenix
@@ -28,3 +30,6 @@ deps/
 _build/
 .elixir_ls
 priv/
+
+*.bak
+TANK/

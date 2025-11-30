@@ -10,18 +10,19 @@
     "format": "prettier --write '**/*.{md,mdx,ts,js,mjs,cjs,jsx,tsx,yaml,yml,json,html,css,scss,vue,astro}'"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.8.6",
+    "@inquirer/prompts": "^7.10.1",
     "chalk": "^5.6.2",
     "nunjucks": "^3.2.4",
-    "pino": "^9.11.0",
-    "pino-pretty": "^13.1.1",
+    "pino": "^9.14.0",
+    "pino-pretty": "^13.1.2",
     "pino-roll": "^3.1.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "prettier": "^3.6.2"
+    "@types/nunjucks": "^3.2.6",
+    "prettier": "^3.7.3"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.2"
   }
 }
