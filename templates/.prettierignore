@@ -12,6 +12,7 @@ __pycache__/
 pg/
 .swc/
 pnpm-lock.yaml
+bun.lock
 
 *.min*
 
