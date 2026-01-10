@@ -13,6 +13,7 @@ pg/
 .swc/
 pnpm-lock.yaml
 bun.lock
+.venv/
 
 *.min*
 
@@ -23,6 +24,7 @@ bun.lock
 .mypy_cache/
 .next/
 .netlify/
+.shopify/
 .swc/
 .wrangler/
 
