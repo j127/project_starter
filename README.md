@@ -4,6 +4,9 @@ An interactive CLI script to add helper files to a project.
 
 This program uses [Bun](https://bun.sh/), so install that first.
 
+It can also generate a paired Claude hook/settings option that creates both
+`.claude/hooks/no-ai-attribution.sh` and `.claude/settings.json` together.
+
 To link the project to your system, run:
 
 ```bash

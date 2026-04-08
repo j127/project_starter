@@ -8,6 +8,15 @@ import pino from "pino";
 import pinoPretty from "pino-pretty";
 import prettier from "prettier";
 
+const CLAUDE_NO_AI_ATTRIBUTION_PAIR = "__claude_no_ai_attribution_pair__";
+
+type TemplateTarget = {
+  displayPath: string;
+  executable?: boolean;
+  targetPath: string;
+  templatePath: string;
+};
+
 const logger = pino(
   pinoPretty({
     colorize: true,
@@ -16,6 +25,38 @@ const logger = pino(
   })
 );
 
+async function exists(filePath: string) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function renderTemplate(
+  file: string,
+  templatePath: string,
+  context: Record<string, boolean | number | string>
+) {
+  const templateContent = await fs.readFile(templatePath, "utf-8");
+
+  let rendered = nunjucks.renderString(templateContent, context);
+
+  if (file.endsWith(".mjs")) {
+    rendered = await prettier.format(rendered, {
+      parser: "babel",
+    });
+  }
+
+  if (file === ".editorconfig") {
+    // Remove multiple blank lines, leaving max 1
+    rendered = rendered.replace(/\n{3,}/g, "\n\n");
+  }
+
+  return rendered;
+}
+
 async function main() {
   logger.info("Welcome to the Project Starter CLI!");
 
@@ -23,18 +64,26 @@ async function main() {
 
   let templateFiles: string[] = [];
   try {
-    templateFiles = await fs.readdir(templatesDir);
-    // Filter out .DS_Store
-    templateFiles = templateFiles.filter((f) => f !== ".DS_Store");
+    const templateEntries = await fs.readdir(templatesDir, {
+      withFileTypes: true,
+    });
+    templateFiles = templateEntries
+      .filter((entry) => entry.isFile() && entry.name !== ".DS_Store")
+      .map((entry) => entry.name);
   } catch (error) {
     logger.error({ err: error }, "Failed to read templates directory");
     process.exit(1);
   }
 
   if (templateFiles.length === 0) {
-    logger.warn("No templates found.");
-    return;
+    logger.warn("No standalone templates found.");
   }
+
+  nunjucks.configure({
+    autoescape: false,
+    trimBlocks: true,
+    lstripBlocks: true,
+  });
 
   const indentStyle = await select({
     message: "Indentation style",
@@ -62,7 +111,13 @@ async function main() {
 
   const selectedFiles = await checkbox({
     message: "Select files to add",
-    choices: templateFiles.map((file) => ({ name: file, value: file })),
+    choices: [
+      ...templateFiles.map((file) => ({ name: file, value: file })),
+      {
+        name: ".claude no-AI-attribution hook pair",
+        value: CLAUDE_NO_AI_ATTRIBUTION_PAIR,
+      },
+    ],
   });
 
   if (selectedFiles.length === 0) {
@@ -85,38 +140,76 @@ async function main() {
     prettierPluginTailwindcss = plugins.includes("tailwindcss");
   }
 
+  const renderContext = {
+    indent_style: indentStyle,
+    indent_size: indentSize,
+    max_line_length: maxLineLength,
+    prettier_plugin_astro: prettierPluginAstro,
+    prettier_plugin_tailwindcss: prettierPluginTailwindcss,
+  };
+
+  const claudePairTargets: TemplateTarget[] = [
+    {
+      displayPath: ".claude/hooks/no-ai-attribution.sh",
+      executable: true,
+      targetPath: path.join(process.cwd(), ".claude/hooks/no-ai-attribution.sh"),
+      templatePath: path.join(
+        templatesDir,
+        ".claude/hooks/no-ai-attribution.sh"
+      ),
+    },
+    {
+      displayPath: ".claude/settings.json",
+      targetPath: path.join(process.cwd(), ".claude/settings.json"),
+      templatePath: path.join(templatesDir, ".claude/settings.json"),
+    },
+  ];
+
+  if (selectedFiles.includes(CLAUDE_NO_AI_ATTRIBUTION_PAIR)) {
+    const existingPairFiles: string[] = [];
+
+    for (const target of claudePairTargets) {
+      if (await exists(target.targetPath)) {
+        existingPairFiles.push(target.displayPath);
+      }
+    }
+
+    if (existingPairFiles.length > 0) {
+      logger.error(
+        `Cannot create .claude no-AI-attribution hook pair because these files already exist: ${existingPairFiles.join(", ")}`
+      );
+      process.exit(1);
+    }
+  }
+
   for (const file of selectedFiles) {
-    const templatePath = path.join(templatesDir, file);
-    const targetPath = path.join(process.cwd(), file);
-
     try {
-      const templateContent = await fs.readFile(templatePath, "utf-8");
+      if (file === CLAUDE_NO_AI_ATTRIBUTION_PAIR) {
+        for (const target of claudePairTargets) {
+          const rendered = await renderTemplate(
+            target.displayPath,
+            target.templatePath,
+            renderContext
+          );
 
-      // Configure nunjucks
-      nunjucks.configure({
-        autoescape: false,
-        trimBlocks: true,
-        lstripBlocks: true,
-      });
-      let rendered = nunjucks.renderString(templateContent, {
-        indent_style: indentStyle,
-        indent_size: indentSize,
-        max_line_length: maxLineLength,
-        prettier_plugin_astro: prettierPluginAstro,
-        prettier_plugin_tailwindcss: prettierPluginTailwindcss,
-      });
+          await fs.mkdir(path.dirname(target.targetPath), { recursive: true });
+          await fs.writeFile(target.targetPath, rendered);
 
-      if (file.endsWith(".mjs")) {
-        rendered = await prettier.format(rendered, {
-          parser: "babel",
-        });
+          if (target.executable) {
+            await fs.chmod(target.targetPath, 0o755);
+          }
+
+          logger.info(`Created ${chalk.green(target.displayPath)}`);
+        }
+
+        continue;
       }
 
-      if (file === ".editorconfig") {
-        // Remove multiple blank lines, leaving max 1
-        rendered = rendered.replace(/\n{3,}/g, "\n\n");
-      }
+      const templatePath = path.join(templatesDir, file);
+      const targetPath = path.join(process.cwd(), file);
+      const rendered = await renderTemplate(file, templatePath, renderContext);
 
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, rendered);
       logger.info(`Created ${chalk.green(file)}`);
     } catch (error) {
