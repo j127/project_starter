@@ -152,7 +152,10 @@ async function main() {
     {
       displayPath: ".claude/hooks/no-ai-attribution.sh",
       executable: true,
-      targetPath: path.join(process.cwd(), ".claude/hooks/no-ai-attribution.sh"),
+      targetPath: path.join(
+        process.cwd(),
+        ".claude/hooks/no-ai-attribution.sh"
+      ),
       templatePath: path.join(
         templatesDir,
         ".claude/hooks/no-ai-attribution.sh"
