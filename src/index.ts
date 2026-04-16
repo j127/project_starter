@@ -9,6 +9,7 @@ import pinoPretty from "pino-pretty";
 import prettier from "prettier";
 
 const CLAUDE_NO_AI_ATTRIBUTION_PAIR = "__claude_no_ai_attribution_pair__";
+const GEMINI_SETTINGS = "__gemini_settings__";
 
 type TemplateTarget = {
   displayPath: string;
@@ -117,6 +118,10 @@ async function main() {
         name: ".claude no-AI-attribution hook pair",
         value: CLAUDE_NO_AI_ATTRIBUTION_PAIR,
       },
+      {
+        name: ".gemini/settings.json",
+        value: GEMINI_SETTINGS,
+      },
     ],
   });
 
@@ -168,6 +173,14 @@ async function main() {
     },
   ];
 
+  const subdirTargets: Record<string, TemplateTarget> = {
+    [GEMINI_SETTINGS]: {
+      displayPath: ".gemini/settings.json",
+      targetPath: path.join(process.cwd(), ".gemini/settings.json"),
+      templatePath: path.join(templatesDir, ".gemini/settings.json"),
+    },
+  };
+
   if (selectedFiles.includes(CLAUDE_NO_AI_ATTRIBUTION_PAIR)) {
     const existingPairFiles: string[] = [];
 
@@ -204,6 +217,21 @@ async function main() {
 
           logger.info(`Created ${chalk.green(target.displayPath)}`);
         }
+
+        continue;
+      }
+
+      if (file in subdirTargets) {
+        const target = subdirTargets[file];
+        const rendered = await renderTemplate(
+          target.displayPath,
+          target.templatePath,
+          renderContext
+        );
+
+        await fs.mkdir(path.dirname(target.targetPath), { recursive: true });
+        await fs.writeFile(target.targetPath, rendered);
+        logger.info(`Created ${chalk.green(target.displayPath)}`);
 
         continue;
       }
