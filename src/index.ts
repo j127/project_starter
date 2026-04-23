@@ -181,6 +181,16 @@ async function main() {
     },
   };
 
+  if (selectedFiles.includes("clean.sh")) {
+    const cleanScriptTarget = path.join(process.cwd(), "scripts/clean.sh");
+    if (await exists(cleanScriptTarget)) {
+      logger.error(
+        `Cannot create scripts/clean.sh because the file already exists`
+      );
+      process.exit(1);
+    }
+  }
+
   if (selectedFiles.includes(CLAUDE_NO_AI_ATTRIBUTION_PAIR)) {
     const existingPairFiles: string[] = [];
 
@@ -237,12 +247,17 @@ async function main() {
       }
 
       const templatePath = path.join(templatesDir, file);
-      const targetPath = path.join(process.cwd(), file);
+      const relativeTargetPath =
+        file === "clean.sh" ? "scripts/clean.sh" : file;
+      const targetPath = path.join(process.cwd(), relativeTargetPath);
       const rendered = await renderTemplate(file, templatePath, renderContext);
 
       await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, rendered);
-      logger.info(`Created ${chalk.green(file)}`);
+      if (file === "clean.sh") {
+        await fs.chmod(targetPath, 0o755);
+      }
+      logger.info(`Created ${chalk.green(relativeTargetPath)}`);
     } catch (error) {
       logger.error({ err: error, file }, "Failed to process file");
     }
