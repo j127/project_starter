@@ -1,3 +1,7 @@
+.claude/*
+!.claude/hooks/
+!.claude/settings.json
+
 .env
 .envrc
 

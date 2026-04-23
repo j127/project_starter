@@ -1,0 +1,11 @@
+Do not read, grep, cat, or otherwise look at or edit any files or directories that are blocked by `.gitignore`.
+
+NEVER commit code that contains AI agent attribution. Do NOT add the agent name (e.g. Claude, Generated with Claude Code, Co-Authored-By Claude) anywhere in commit messages, PR descriptions, or other Git/GitHub messages.
+
+Default to using Bun instead of Node.js. That means use commands like `bunx` instead of `npx`.
+
+Write tests for all code.
+
+NEVER remove comments from the code without asking. They sometimes contain important notes that are needed for later.
+
+Note that `rm` and `ls` are overriden with another bash script so you will need to use `/bin/rm` and `/bin/ls` to use the normal commands.
