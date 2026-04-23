@@ -4,4 +4,4 @@ default:
 
 # Remove build artifacts
 clean:
-  ./clean.sh
+  ./scripts/clean.sh

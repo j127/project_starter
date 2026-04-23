@@ -8,15 +8,45 @@ import pino from "pino";
 import pinoPretty from "pino-pretty";
 import prettier from "prettier";
 
-const CLAUDE_NO_AI_ATTRIBUTION_PAIR = "__claude_no_ai_attribution_pair__";
-const GEMINI_SETTINGS = "__gemini_settings__";
+export const CLAUDE_NO_AI_ATTRIBUTION_PAIR =
+  "__claude_no_ai_attribution_pair__";
+export const GEMINI_SETTINGS = "__gemini_settings__";
 
-type TemplateTarget = {
+export type TemplateTarget = {
   displayPath: string;
   executable?: boolean;
   targetPath: string;
   templatePath: string;
 };
+
+type FileSystem = Pick<
+  typeof fs,
+  "access" | "chmod" | "mkdir" | "readFile" | "readdir" | "unlink" | "writeFile"
+>;
+
+type Logger = Pick<typeof logger, "error" | "info" | "warn">;
+type RenderContext = Record<string, boolean | number | string>;
+
+type GenerateFilesOptions = {
+  destinationDir: string;
+  fileSystem?: FileSystem;
+  logger?: Logger;
+  renderContext: RenderContext;
+  selectedFiles: string[];
+  templatesDir: string;
+};
+
+type PreparedTemplate = {
+  rendered: string;
+  target: TemplateTarget;
+};
+
+class ProjectStarterError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ProjectStarterError";
+  }
+}
 
 const logger = pino(
   pinoPretty({
@@ -26,21 +56,22 @@ const logger = pino(
   })
 );
 
-async function exists(filePath: string) {
+async function exists(filePath: string, fileSystem: FileSystem = fs) {
   try {
-    await fs.access(filePath);
+    await fileSystem.access(filePath);
     return true;
   } catch {
     return false;
   }
 }
 
-async function renderTemplate(
+export async function renderTemplate(
   file: string,
   templatePath: string,
-  context: Record<string, boolean | number | string>
+  context: RenderContext,
+  fileSystem: FileSystem = fs
 ) {
-  const templateContent = await fs.readFile(templatePath, "utf-8");
+  const templateContent = await fileSystem.readFile(templatePath, "utf-8");
 
   let rendered = nunjucks.renderString(templateContent, context);
 
@@ -58,21 +89,218 @@ async function renderTemplate(
   return rendered;
 }
 
-async function main() {
-  logger.info("Welcome to the Project Starter CLI!");
-
-  const templatesDir = path.join(import.meta.dir, "../templates");
-
-  let templateFiles: string[] = [];
+export async function listStandaloneTemplateFiles(
+  templatesDir: string,
+  fileSystem: FileSystem = fs
+) {
   try {
-    const templateEntries = await fs.readdir(templatesDir, {
+    const templateEntries = await fileSystem.readdir(templatesDir, {
       withFileTypes: true,
     });
-    templateFiles = templateEntries
+    return templateEntries
       .filter((entry) => entry.isFile() && entry.name !== ".DS_Store")
       .map((entry) => entry.name);
   } catch (error) {
-    logger.error({ err: error }, "Failed to read templates directory");
+    throw new ProjectStarterError("Failed to read templates directory", {
+      cause: error,
+    });
+  }
+}
+
+function getClaudePairTargets(
+  templatesDir: string,
+  destinationDir: string
+): TemplateTarget[] {
+  return [
+    {
+      displayPath: ".claude/hooks/no-ai-attribution.sh",
+      executable: true,
+      targetPath: path.join(
+        destinationDir,
+        ".claude/hooks/no-ai-attribution.sh"
+      ),
+      templatePath: path.join(
+        templatesDir,
+        ".claude/hooks/no-ai-attribution.sh"
+      ),
+    },
+    {
+      displayPath: ".claude/settings.json",
+      targetPath: path.join(destinationDir, ".claude/settings.json"),
+      templatePath: path.join(templatesDir, ".claude/settings.json"),
+    },
+  ];
+}
+
+function getSubdirTargets(
+  templatesDir: string,
+  destinationDir: string
+): Record<string, TemplateTarget> {
+  return {
+    [GEMINI_SETTINGS]: {
+      displayPath: ".gemini/settings.json",
+      targetPath: path.join(destinationDir, ".gemini/settings.json"),
+      templatePath: path.join(templatesDir, ".gemini/settings.json"),
+    },
+  };
+}
+
+export function buildTemplateTargets({
+  destinationDir,
+  selectedFiles,
+  templatesDir,
+}: Pick<
+  GenerateFilesOptions,
+  "destinationDir" | "selectedFiles" | "templatesDir"
+>): TemplateTarget[] {
+  const claudePairTargets = getClaudePairTargets(templatesDir, destinationDir);
+  const subdirTargets = getSubdirTargets(templatesDir, destinationDir);
+  const targets: TemplateTarget[] = [];
+
+  for (const file of selectedFiles) {
+    if (file === CLAUDE_NO_AI_ATTRIBUTION_PAIR) {
+      targets.push(...claudePairTargets);
+      continue;
+    }
+
+    const subdirTarget = subdirTargets[file];
+    if (subdirTarget) {
+      targets.push(subdirTarget);
+      continue;
+    }
+
+    const relativeTargetPath = file === "clean.sh" ? "scripts/clean.sh" : file;
+    targets.push({
+      displayPath: relativeTargetPath,
+      executable: file === "clean.sh",
+      targetPath: path.join(destinationDir, relativeTargetPath),
+      templatePath: path.join(templatesDir, file),
+    });
+  }
+
+  return targets;
+}
+
+async function assertTargetsDoNotExist(
+  targets: TemplateTarget[],
+  fileSystem: FileSystem
+) {
+  const existingTargets: string[] = [];
+
+  for (const target of targets) {
+    if (await exists(target.targetPath, fileSystem)) {
+      existingTargets.push(target.displayPath);
+    }
+  }
+
+  if (existingTargets.length > 0) {
+    throw new ProjectStarterError(
+      `Cannot create files because these files already exist: ${existingTargets.join(", ")}`
+    );
+  }
+}
+
+async function prepareTemplates(
+  targets: TemplateTarget[],
+  renderContext: RenderContext,
+  fileSystem: FileSystem
+): Promise<PreparedTemplate[]> {
+  const preparedTemplates: PreparedTemplate[] = [];
+
+  for (const target of targets) {
+    const rendered = await renderTemplate(
+      target.displayPath,
+      target.templatePath,
+      renderContext,
+      fileSystem
+    );
+    preparedTemplates.push({ rendered, target });
+  }
+
+  return preparedTemplates;
+}
+
+async function rollbackWrittenTargets(
+  writtenTargets: TemplateTarget[],
+  fileSystem: FileSystem,
+  generationLogger: Logger
+) {
+  for (const target of [...writtenTargets].reverse()) {
+    try {
+      await fileSystem.unlink(target.targetPath);
+    } catch (error) {
+      generationLogger.error(
+        { err: error, file: target.displayPath },
+        "Failed to rollback file"
+      );
+    }
+  }
+}
+
+export async function generateSelectedFiles({
+  destinationDir,
+  fileSystem = fs,
+  logger: generationLogger = logger,
+  renderContext,
+  selectedFiles,
+  templatesDir,
+}: GenerateFilesOptions) {
+  const targets = buildTemplateTargets({
+    destinationDir,
+    selectedFiles,
+    templatesDir,
+  });
+
+  await assertTargetsDoNotExist(targets, fileSystem);
+
+  const preparedTemplates = await prepareTemplates(
+    targets,
+    renderContext,
+    fileSystem
+  );
+  const writtenTargets: TemplateTarget[] = [];
+
+  try {
+    for (const { rendered, target } of preparedTemplates) {
+      await fileSystem.mkdir(path.dirname(target.targetPath), {
+        recursive: true,
+      });
+      await fileSystem.writeFile(target.targetPath, rendered);
+      writtenTargets.push(target);
+
+      if (target.executable) {
+        await fileSystem.chmod(target.targetPath, 0o755);
+      }
+
+      generationLogger.info(`Created ${chalk.green(target.displayPath)}`);
+    }
+  } catch (error) {
+    await rollbackWrittenTargets(writtenTargets, fileSystem, generationLogger);
+    throw new ProjectStarterError("Failed to generate files", {
+      cause: error,
+    });
+  }
+
+  return targets;
+}
+
+function getTemplatesDir() {
+  return path.join(import.meta.dir, "../templates");
+}
+
+export async function main() {
+  logger.info("Welcome to the Project Starter CLI!");
+
+  const templatesDir = getTemplatesDir();
+
+  let templateFiles: string[] = [];
+  try {
+    templateFiles = await listStandaloneTemplateFiles(templatesDir);
+  } catch (error) {
+    logger.error(
+      { err: error },
+      error instanceof Error ? error.message : "Failed to read templates directory"
+    );
     process.exit(1);
   }
 
@@ -153,120 +381,28 @@ async function main() {
     prettier_plugin_tailwindcss: prettierPluginTailwindcss,
   };
 
-  const claudePairTargets: TemplateTarget[] = [
-    {
-      displayPath: ".claude/hooks/no-ai-attribution.sh",
-      executable: true,
-      targetPath: path.join(
-        process.cwd(),
-        ".claude/hooks/no-ai-attribution.sh"
-      ),
-      templatePath: path.join(
-        templatesDir,
-        ".claude/hooks/no-ai-attribution.sh"
-      ),
-    },
-    {
-      displayPath: ".claude/settings.json",
-      targetPath: path.join(process.cwd(), ".claude/settings.json"),
-      templatePath: path.join(templatesDir, ".claude/settings.json"),
-    },
-  ];
-
-  const subdirTargets: Record<string, TemplateTarget> = {
-    [GEMINI_SETTINGS]: {
-      displayPath: ".gemini/settings.json",
-      targetPath: path.join(process.cwd(), ".gemini/settings.json"),
-      templatePath: path.join(templatesDir, ".gemini/settings.json"),
-    },
-  };
-
-  if (selectedFiles.includes("clean.sh")) {
-    const cleanScriptTarget = path.join(process.cwd(), "scripts/clean.sh");
-    if (await exists(cleanScriptTarget)) {
-      logger.error(
-        `Cannot create scripts/clean.sh because the file already exists`
-      );
-      process.exit(1);
-    }
-  }
-
-  if (selectedFiles.includes(CLAUDE_NO_AI_ATTRIBUTION_PAIR)) {
-    const existingPairFiles: string[] = [];
-
-    for (const target of claudePairTargets) {
-      if (await exists(target.targetPath)) {
-        existingPairFiles.push(target.displayPath);
-      }
-    }
-
-    if (existingPairFiles.length > 0) {
-      logger.error(
-        `Cannot create .claude no-AI-attribution hook pair because these files already exist: ${existingPairFiles.join(", ")}`
-      );
-      process.exit(1);
-    }
-  }
-
-  for (const file of selectedFiles) {
-    try {
-      if (file === CLAUDE_NO_AI_ATTRIBUTION_PAIR) {
-        for (const target of claudePairTargets) {
-          const rendered = await renderTemplate(
-            target.displayPath,
-            target.templatePath,
-            renderContext
-          );
-
-          await fs.mkdir(path.dirname(target.targetPath), { recursive: true });
-          await fs.writeFile(target.targetPath, rendered);
-
-          if (target.executable) {
-            await fs.chmod(target.targetPath, 0o755);
-          }
-
-          logger.info(`Created ${chalk.green(target.displayPath)}`);
-        }
-
-        continue;
-      }
-
-      if (file in subdirTargets) {
-        const target = subdirTargets[file];
-        const rendered = await renderTemplate(
-          target.displayPath,
-          target.templatePath,
-          renderContext
-        );
-
-        await fs.mkdir(path.dirname(target.targetPath), { recursive: true });
-        await fs.writeFile(target.targetPath, rendered);
-        logger.info(`Created ${chalk.green(target.displayPath)}`);
-
-        continue;
-      }
-
-      const templatePath = path.join(templatesDir, file);
-      const relativeTargetPath =
-        file === "clean.sh" ? "scripts/clean.sh" : file;
-      const targetPath = path.join(process.cwd(), relativeTargetPath);
-      const rendered = await renderTemplate(file, templatePath, renderContext);
-
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
-      await fs.writeFile(targetPath, rendered);
-      if (file === "clean.sh") {
-        await fs.chmod(targetPath, 0o755);
-      }
-      logger.info(`Created ${chalk.green(relativeTargetPath)}`);
-    } catch (error) {
-      logger.error({ err: error, file }, "Failed to process file");
-    }
+  try {
+    await generateSelectedFiles({
+      destinationDir: process.cwd(),
+      logger,
+      renderContext,
+      selectedFiles,
+      templatesDir,
+    });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      error instanceof Error ? error.message : "Failed to generate files"
+    );
+    process.exit(1);
   }
 
   logger.info("Done!");
 }
 
-main().catch((err) => {
-  logger.error({ err }, "Unexpected error");
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    logger.error({ err }, "Unexpected error");
+    process.exit(1);
+  });
+}
