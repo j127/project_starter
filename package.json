@@ -5,11 +5,12 @@
   "type": "module",
   "private": true,
   "license": "MIT",
-  "version": "3.2.0",
+  "version": "3.2.2",
   "bin": {
     "project_starter": "src/index.ts"
   },
   "scripts": {
+    "test": "bun test",
     "format": "prettier --write '**/*.{md,mdx,ts,js,mjs,cjs,jsx,tsx,yaml,yml,json,html,css,scss,vue,astro}'"
   },
   "dependencies": {
