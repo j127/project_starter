@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "license": "MIT",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "bin": {
     "project_starter": "src/index.ts"
   },
